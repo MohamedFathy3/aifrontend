@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND_URL = "https://ai.injazyemen.cloud";
+const BACKEND_URL = process.env.LARAVEL_BACKEND_URL || "https://ai.injazyemen.cloud";
 
 function rewriteSetCookie(cookie: string): string {
   return cookie
@@ -41,6 +41,9 @@ export async function proxyToLaravel(
   if (xsrfToken) {
     headers.set("x-xsrf-token", xsrfToken);
   }
+  // The BFF is the browser's same-origin boundary. Laravel Sanctum must still
+  // see a configured stateful SPA origin for cookie-session authentication.
+  headers.set("origin", process.env.LARAVEL_STATEFUL_ORIGIN || "http://localhost:3000");
 
   // VERY IMPORTANT:
   // Forward browser cookies to Laravel.
