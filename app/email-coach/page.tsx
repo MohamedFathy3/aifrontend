@@ -1,0 +1,10 @@
+"use client";
+import { FormEvent, useState } from "react";
+import { apiClient } from "@/lib/api-client";
+import { WorkspaceFrame } from "@/app/components/WorkspaceFrame";
+
+export default function EmailCoachPage() {
+  const [email, setEmail] = useState(""); const [goal, setGoal] = useState("advance the conversation"); const [tone, setTone] = useState("professional"); const [answer, setAnswer] = useState(""); const [busy, setBusy] = useState(false);
+  async function submit(e: FormEvent) { e.preventDefault(); setBusy(true); try { const r = await apiClient.post("/v1/ai/email-coach", { email, goal, tone }); setAnswer(r.data.analysis || r.data.message); } catch (e: any) { setAnswer(e?.response?.data?.message || "AI is not configured."); } finally { setBusy(false); } }
+  return <WorkspaceFrame title="Email Coach" eyebrow="Sales communication intelligence"><main className="standalone-page"><div className="content"><div className="page-intro"><p className="eyebrow">Sales communication intelligence</p><h1>Analyze an email and write the best reply</h1><p>Understand the sender’s intent, strengths, objections and the next response before you send.</p></div><section className="panel"><form onSubmit={submit}><label>Paste the email<textarea value={email} onChange={e => setEmail(e.target.value)} required minLength={10} placeholder="Paste the full email conversation here..." /></label><div className="ai-grid"><label>Goal<input value={goal} onChange={e => setGoal(e.target.value)} placeholder="advance the conversation" /></label><label>Tone<select value={tone} onChange={e => setTone(e.target.value)}><option value="professional">Professional</option><option value="friendly">Friendly</option><option value="concise">Concise</option><option value="persuasive">Persuasive</option></select></label></div><button className="primary-button" disabled={busy}>{busy ? "Analyzing…" : "Analyze and draft reply"}</button></form></section>{answer && <section className="panel ai-reply email-answer"><h3>AI analysis</h3><div>{answer}</div></section>}</div></main></WorkspaceFrame>;
+}
