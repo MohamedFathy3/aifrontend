@@ -1,58 +1,32 @@
 "use client";
-
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Building2, CheckCircle2, ChevronRight, ClipboardList, LayoutDashboard, LogOut, Menu, Plus, Search, Ship, Users, X } from "lucide-react";
+import { apiClient } from "@/lib/api-client";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useLogout } from "@/features/auth/hooks/useLogout";
 
+type Tab = "overview" | "leads" | "clients" | "shipments" | "follow-ups";
+type Lead = { id: number; company_name: string; city?: string; country?: string; status: string; lead_score?: number; email?: string; updated_at: string };
+type Dashboard = { stats: Record<string, number>; pipeline: Record<string, number>; recent_leads: Lead[]; upcoming_follow_ups: { id: number; subject_type: string; subject_id: number; type: string; due_date: string; note?: string }[] };
+type PageData = { data: any[] };
+const statusLabels: Record<string, string> = { new: "New", contacted: "Contacted", interested: "Interested", follow_up: "Follow-up", qualified: "Qualified", converted: "Converted", lost: "Lost", not_interested: "Not interested" };
+
 export default function DashboardPage() {
-  const router = useRouter();
-  const { data: user, isLoading, isError } = useCurrentUser();
-  const logout = useLogout();
-
-  useEffect(() => {
-    // Client-side redirect if the session turns out to be invalid. This is a
-    // UX convenience only - every real protected endpoint re-checks auth
-    // and role server-side regardless of what this page decides to render.
-    if (!isLoading && (isError || user === null)) {
-      router.replace("/login");
-    }
-  }, [isLoading, isError, user, router]);
-
-  if (isLoading || !user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center text-sm text-slate-500">
-        Loading...
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen">
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
-        <div>
-          <h1 className="text-lg font-semibold">Pyramidth CRM</h1>
-          <p className="text-sm text-slate-500">
-            {user.name} &middot; {user.role_label}
-          </p>
-        </div>
-        <button
-          onClick={() => logout.mutate()}
-          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
-        >
-          Sign out
-        </button>
-      </header>
-
-      <main className="p-6">
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-          Dashboard metrics, lead pipeline charts, and follow-up widgets land in Phase 8.
-          <br />
-          Phase 1 confirms the authenticated request pipeline is real: this page only
-          renders because <code className="rounded bg-slate-100 px-1">/api/v1/auth/me</code> returned
-          a valid session for <strong>{user.email}</strong>.
-        </div>
-      </main>
-    </div>
-  );
+  const router = useRouter(); const queryClient = useQueryClient(); const { data: user, isLoading, isError } = useCurrentUser(); const logout = useLogout();
+  const [tab, setTab] = useState<Tab>("overview"); const [mobileOpen, setMobileOpen] = useState(false); const [search, setSearch] = useState(""); const [showLeadForm, setShowLeadForm] = useState(false); const [notice, setNotice] = useState("");
+  useEffect(() => { if (!isLoading && (isError || user === null)) router.replace("/login"); }, [isLoading, isError, user, router]);
+  const dashboard = useQuery<Dashboard>({ queryKey: ["dashboard"], queryFn: async () => (await apiClient.get("/v1/dashboard")).data, enabled: !!user });
+  const list = useQuery<PageData>({ queryKey: [tab, search], queryFn: async () => (await apiClient.get(`/v1/${tab}`, { params: { search: search || undefined } })).data, enabled: !!user && tab !== "overview" });
+  const createLead = useMutation({ mutationFn: (payload: Record<string, string>) => apiClient.post("/v1/leads", payload), onSuccess: () => { setShowLeadForm(false); setNotice("Lead created successfully."); queryClient.invalidateQueries({ queryKey: ["dashboard"] }); queryClient.invalidateQueries({ queryKey: ["leads"] }); } });
+  const convert = async (id: number) => { try { await apiClient.post(`/v1/leads/${id}/convert`); setNotice("Lead converted to client."); queryClient.invalidateQueries({ queryKey: ["leads"] }); queryClient.invalidateQueries({ queryKey: ["dashboard"] }); } catch { setNotice("This lead could not be converted. Check its status and permissions."); } };
+  if (isLoading || !user) return <div className="loading">Loading your workspace…</div>;
+  const nav = [{ id: "overview", label: "Overview", icon: LayoutDashboard }, { id: "leads", label: "Leads", icon: Users }, { id: "clients", label: "Clients", icon: Building2 }, { id: "shipments", label: "Shipments", icon: Ship }, { id: "follow-ups", label: "Follow-ups", icon: ClipboardList }] as const;
+  return <div className="app-shell"><aside className={mobileOpen ? "sidebar open" : "sidebar"}><div className="brand"><div className="brand-mark">P</div><div><strong>Pyramidth</strong><span>Sales CRM</span></div><button className="mobile-close" onClick={() => setMobileOpen(false)}><X size={18} /></button></div><nav>{nav.map(item => { const Icon = item.icon; return <button key={item.id} className={tab === item.id ? "nav-item active" : "nav-item"} onClick={() => { setTab(item.id); setMobileOpen(false); }}><Icon size={18} /><span>{item.label}</span>{tab === item.id && <ChevronRight className="nav-arrow" size={15} />}</button>; })}</nav><div className="sidebar-footer"><div className="avatar">{user.name.slice(0, 1).toUpperCase()}</div><div className="user-copy"><strong>{user.name}</strong><span>{user.role_label}</span></div><button className="icon-button" onClick={() => logout.mutate()} title="Sign out"><LogOut size={17} /></button></div></aside><main className="main"><header className="topbar"><button className="mobile-menu" onClick={() => setMobileOpen(true)}><Menu size={20} /></button><div><p className="eyebrow">{tab === "overview" ? "Workspace" : "Sales workspace"}</p><h1>{tab === "overview" ? "Good morning, " + user.name.split(" ")[0] : nav.find(n => n.id === tab)?.label}</h1></div><div className="top-actions"><div className="global-search"><Search size={16} /><input placeholder="Search records" value={search} onChange={e => setSearch(e.target.value)} /></div><button className="primary-button" onClick={() => setShowLeadForm(true)}><Plus size={17} /> New lead</button></div></header>{notice && <div className="notice"><CheckCircle2 size={17} /> {notice}<button onClick={() => setNotice("")}><X size={15} /></button></div>}{tab === "overview" ? <Overview data={dashboard.data} onLead={() => setShowLeadForm(true)} /> : <RecordList tab={tab} data={list.data?.data ?? []} loading={list.isLoading} onConvert={convert} />}</main>{showLeadForm && <LeadModal onClose={() => setShowLeadForm(false)} onSubmit={payload => createLead.mutate(payload)} loading={createLead.isPending} />}</div>;
 }
+function Overview({ data, onLead }: { data?: Dashboard; onLead: () => void }) { const stats = data?.stats ?? {}; const stages = Object.entries(data?.pipeline ?? {}); return <div className="content"><section className="hero-card"><div><p className="eyebrow light">Sales command center</p><h2>Turn conversations into shipments.</h2><p>Discover opportunities, follow up at the right time, and hand qualified business to operations.</p><button className="light-button" onClick={onLead}><Plus size={16} /> Add a lead</button></div><div className="hero-orbit"><div className="orbit-dot dot-one" /><div className="orbit-dot dot-two" /><div className="orbit-center">CRM</div></div></section><section className="stat-grid">{[["Total leads", stats.leads ?? 0, "Across your pipeline"], ["Open opportunities", stats.open_leads ?? 0, "Need attention"], ["Active clients", stats.clients ?? 0, "Converted relationships"], ["Open shipments", stats.shipments ?? 0, "Sales handover queue"]].map(([label, value, hint]) => <div className="stat-card" key={label as string}><span>{label}</span><strong>{value}</strong><small>{hint}</small></div>)}</section><div className="two-col"><section className="panel"><div className="panel-head"><div><p className="eyebrow">Pipeline</p><h3>Lead momentum</h3></div><span className="panel-count">{stats.leads ?? 0} total</span></div><div className="pipeline">{stages.length ? stages.map(([stage, count]) => <div className="pipeline-row" key={stage}><div><span className={`status-dot ${stage}`} />{statusLabels[stage] ?? stage}</div><strong>{count}</strong><div className="progress"><i style={{ width: `${Math.min(100, (Number(count) / Math.max(1, Number(stats.leads))) * 100)}%` }} /></div></div>) : <Empty text="Your pipeline will appear here." />}</div></section><section className="panel"><div className="panel-head"><div><p className="eyebrow">Next actions</p><h3>Upcoming follow-ups</h3></div><span className="panel-count">{stats.pending_follow_ups ?? 0} pending</span></div>{data?.upcoming_follow_ups?.length ? <div className="follow-list">{data.upcoming_follow_ups.map(item => <div className="follow-item" key={item.id}><div className="date-box"><strong>{new Date(item.due_date).getDate()}</strong><span>{new Date(item.due_date).toLocaleString("en", { month: "short" })}</span></div><div><strong>{item.type.replace("_", " ")}</strong><p>{item.note || `${item.subject_type} #${item.subject_id}`}</p></div></div>)}</div> : <Empty text="No follow-ups due soon." />}</section></div><section className="panel"><div className="panel-head"><div><p className="eyebrow">Recent activity</p><h3>Latest leads</h3></div></div><RecordTable rows={data?.recent_leads ?? []} type="leads" /></section></div> }
+function RecordList({ tab, data, loading, onConvert }: { tab: Tab; data: any[]; loading: boolean; onConvert: (id: number) => void }) { if (loading) return <div className="content"><div className="panel empty-loading">Loading records…</div></div>; return <div className="content"><div className="page-intro"><div><p className="eyebrow">{tab === "leads" ? "Prospecting" : "Relationship management"}</p><h2>{tab === "leads" ? "Leads" : tab[0].toUpperCase() + tab.slice(1)}</h2><p>Real records from your Laravel workspace, scoped by your permissions.</p></div><span className="panel-count">{data.length} shown</span></div><section className="panel"><RecordTable rows={data} type={tab} onConvert={onConvert} /></section></div> }
+function RecordTable({ rows, type, onConvert }: { rows: any[]; type: string; onConvert?: (id: number) => void }) { if (!rows.length) return <Empty text="No records found yet." />; return <div className="table-wrap"><table><thead><tr><th>Name / reference</th><th>Location / detail</th><th>Status</th><th>Updated</th><th /></tr></thead><tbody>{rows.map(row => <tr key={row.id}><td><strong>{row.company_name || row.reference_number || row.subject_type + " #" + row.subject_id}</strong><small>{row.email || row.client?.company_name || row.type || "—"}</small></td><td>{row.city || row.country || row.open_date || row.due_date || "—"}</td><td><span className={`badge ${row.status}`}>{statusLabels[row.status] || row.status || "active"}</span></td><td>{row.updated_at ? new Date(row.updated_at).toLocaleDateString() : "—"}</td><td>{type === "leads" && row.status !== "converted" && onConvert ? <button className="text-button" onClick={() => onConvert(row.id)}>Convert</button> : null}</td></tr>)}</tbody></table></div> }
+function Empty({ text }: { text: string }) { return <div className="empty"><ClipboardList size={22} /><span>{text}</span></div> }
+function LeadModal({ onClose, onSubmit, loading }: { onClose: () => void; onSubmit: (payload: Record<string, string>) => void; loading: boolean }) { const [form, setForm] = useState({ company_name: "", website: "", country: "", city: "", industry: "", contact_name: "", email: "", phone: "", potential_need: "" }); const update = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value })); return <div className="modal-backdrop"><form className="modal" onSubmit={e => { e.preventDefault(); onSubmit(form); }}><div className="modal-head"><div><p className="eyebrow">New opportunity</p><h3>Create lead</h3></div><button type="button" className="icon-button" onClick={onClose}><X size={18} /></button></div><div className="form-grid">{[["company_name", "Company name *"], ["website", "Website"], ["country", "Country"], ["city", "City"], ["industry", "Industry"], ["contact_name", "Contact name"], ["email", "Email"], ["phone", "Phone"]].map(([key, label]) => <label key={key}>{label}<input required={key === "company_name"} type={key === "email" ? "email" : "text"} value={form[key as keyof typeof form]} onChange={e => update(key, e.target.value)} /></label>)}<label className="full">Potential shipping need<textarea value={form.potential_need} onChange={e => update("potential_need", e.target.value)} placeholder="What makes this company a good fit?" /></label></div><div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose}>Cancel</button><button className="primary-button" disabled={loading}>{loading ? "Saving…" : "Create lead"}</button></div></form></div> }
