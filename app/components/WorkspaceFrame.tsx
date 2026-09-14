@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowUpRight, Bot, Building2, CalendarDays, ChevronLeft, ChevronRight, ClipboardList, LayoutDashboard, Linkedin, Mail, Menu, MessageCircle, Search, Ship, Users, X } from "lucide-react";
+import { ArrowUpRight, Bot, Building2, CalendarDays, ChevronLeft, ChevronRight, ClipboardList, LayoutDashboard, Linkedin, Mail, Menu, MessageCircle, Plus, Search, Ship, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/app/components/ui/button";
 
@@ -16,6 +16,7 @@ const links = [
   { href: "/agents", label: "Agents", icon: Users },
   { href: "/inbox", label: "Gmail Inbox", icon: Mail },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/calendar/new", label: "Add appointment", icon: Plus },
   { href: "/research", label: "AI Research", icon: Search },
   { href: "/chat", label: "CRM Chat", icon: MessageCircle },
   { href: "/email-coach", label: "Email Coach", icon: Mail },
