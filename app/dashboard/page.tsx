@@ -9,7 +9,7 @@ import { useLogout } from "@/features/auth/hooks/useLogout";
 import { AiSalesDesk } from "./AiSalesDesk";
 import { WorkspaceFrame } from "@/app/components/WorkspaceFrame";
 
-type Tab = "overview" | "leads" | "clients" | "shipments" | "follow-ups";
+type Tab = "overview" | "leads" | "clients" | "shipments" | "follow-ups" | "agents";
 type Lead = { id: number; company_name: string; city?: string; country?: string; status: string; lead_score?: number; email?: string; updated_at: string };
 type Dashboard = { stats: Record<string, number>; pipeline: Record<string, number>; recent_leads: Lead[]; upcoming_follow_ups: { id: number; subject_type: string; subject_id: number; type: string; due_date: string; note?: string }[] };
 type PageData = { data: any[] };
@@ -18,14 +18,14 @@ const openLeadStatuses = new Set(["new", "contacted", "interested", "follow_up",
 
 export default function DashboardPage() {
   const router = useRouter(); const queryClient = useQueryClient(); const { data: user, isLoading, isError } = useCurrentUser(); const logout = useLogout();
-  const [tab, setTab] = useState<Tab>("overview"); const [mobileOpen, setMobileOpen] = useState(false); const [search, setSearch] = useState(""); const [showLeadForm, setShowLeadForm] = useState(false); const [notice, setNotice] = useState("");
+  const [tab, setTab] = useState<Tab>(() => { if (typeof window === "undefined") return "overview"; const requested = new URLSearchParams(window.location.search).get("tab") as Tab | null; return requested && ["overview", "leads", "clients", "shipments", "follow-ups", "agents"].includes(requested) ? requested : "overview"; }); const [mobileOpen, setMobileOpen] = useState(false); const [search, setSearch] = useState(""); const [showLeadForm, setShowLeadForm] = useState(false); const [notice, setNotice] = useState("");
   useEffect(() => { if (!isLoading && (isError || user === null)) router.replace("/login"); }, [isLoading, isError, user, router]);
   const dashboard = useQuery<Dashboard>({ queryKey: ["dashboard"], queryFn: async () => (await apiClient.get("/v1/dashboard")).data, enabled: !!user });
   const list = useQuery<PageData>({ queryKey: [tab, search], queryFn: async () => (await apiClient.get(`/v1/${tab}`, { params: { search: search || undefined } })).data, enabled: !!user && tab !== "overview" });
   const createLead = useMutation({ mutationFn: (payload: Record<string, string>) => apiClient.post("/v1/leads", payload), onSuccess: () => { setShowLeadForm(false); setNotice("Lead created successfully."); queryClient.invalidateQueries({ queryKey: ["dashboard"] }); queryClient.invalidateQueries({ queryKey: ["leads"] }); } });
   const convert = async (id: number) => { try { await apiClient.post(`/v1/leads/${id}/convert`); setNotice("Lead converted to client."); queryClient.invalidateQueries({ queryKey: ["leads"] }); queryClient.invalidateQueries({ queryKey: ["dashboard"] }); } catch { setNotice("This lead could not be converted. Check its status and permissions."); } };
   if (isLoading || !user) return <div className="loading">Loading your workspace…</div>;
-  const nav = [{ id: "overview", label: "Overview", icon: LayoutDashboard }, { id: "leads", label: "Leads", icon: Users }, { id: "clients", label: "Clients", icon: Building2 }, { id: "shipments", label: "Shipments", icon: Ship }, { id: "follow-ups", label: "Follow-ups", icon: ClipboardList }] as const;
+  const nav = [{ id: "overview", label: "Overview", icon: LayoutDashboard }, { id: "leads", label: "Leads", icon: Users }, { id: "clients", label: "Clients", icon: Building2 }, { id: "shipments", label: "Shipments", icon: Ship }, { id: "follow-ups", label: "Follow-ups", icon: ClipboardList }, { id: "agents", label: "Agents", icon: Users }] as const;
   const pageTitle = tab === "overview" ? `Good morning, ${user.name.split(" ")[0]}` : nav.find(n => n.id === tab)?.label || "Workspace";
   return <WorkspaceFrame title={pageTitle} eyebrow={tab === "overview" ? "Workspace overview" : "Sales workspace"}>
     {notice && <div className="mx-auto flex max-w-[1500px] items-center gap-2 px-5 pt-5 text-sm text-emerald-700 md:px-8"><CheckCircle2 size={16} /> {notice}<button className="ml-auto" onClick={() => setNotice("")}><X size={15} /></button></div>}
