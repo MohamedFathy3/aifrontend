@@ -32,6 +32,7 @@ export function CrmRecordsPage({ type }: { type: CrmType }) {
   useEffect(() => { if (!isLoading && (isError || user === null)) router.replace("/login"); }, [isLoading, isError, user, router]);
   const records = useQuery<{ data: any[] }>({ queryKey: [type, search], queryFn: async () => (await apiClient.get(`/v1/${type}`, { params: { search: search || undefined } })).data, enabled: !!user });
   const convert = useMutation({ mutationFn: (id: number) => apiClient.post(`/v1/leads/${id}/convert`), onSuccess: () => { setNotice("Lead converted to client."); queryClient.invalidateQueries({ queryKey: [type] }); queryClient.invalidateQueries({ queryKey: ["clients"] }); } });
+  const remove = useMutation({ mutationFn: (id: number) => apiClient.delete(`/v1/${type}/${id}`), onSuccess: () => { setNotice("Record deleted."); queryClient.invalidateQueries({ queryKey: [type] }); } });
 
   if (isLoading || !user) return <div className="loading">Loading your workspace…</div>;
   const rows = records.data?.data ?? [];
@@ -40,18 +41,18 @@ export function CrmRecordsPage({ type }: { type: CrmType }) {
     <main className="content">
       <div className="page-intro"><div><p className="eyebrow">{page.eyebrow}</p><h2>{page.title}</h2><p>{page.description}</p></div><span className="panel-count">{rows.length} shown</span></div>
       <div className="mb-4 flex max-w-md items-center gap-2"><input className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={search} onChange={e => setSearch(e.target.value)} placeholder={`Search ${page.title.toLowerCase()}…`} /></div>
-      <section className="panel"><RecordTable rows={rows} type={type} onConvert={(id) => convert.mutate(id)} converting={convert.isPending} /></section>
+      <section className="panel"><RecordTable rows={rows} type={type} onConvert={(id) => convert.mutate(id)} onDelete={(id) => { if (window.confirm("Delete this record?")) remove.mutate(id); }} converting={convert.isPending || remove.isPending} /></section>
     </main>
   </WorkspaceFrame>;
 }
 
-function RecordTable({ rows, type, onConvert, converting }: { rows: any[]; type: CrmType; onConvert: (id: number) => void; converting: boolean }) {
+function RecordTable({ rows, type, onConvert, onDelete, converting }: { rows: any[]; type: CrmType; onConvert: (id: number) => void; onDelete: (id: number) => void; converting: boolean }) {
   if (!rows.length) return <div className="empty"><ClipboardList size={22} /><span>No records found yet.</span></div>;
   return <div className="table-wrap"><table><thead><tr><th>Name / reference</th><th>Location / detail</th><th>Status</th><th>Updated</th><th /></tr></thead><tbody>{rows.map(row => {
     const name = row.company_name || row.reference_number || `${row.subject_type || "Record"} #${row.subject_id || row.id}`;
     const detail = row.email || row.client?.company_name || row.agent?.company_name || row.assigned_to?.name || row.type || "—";
     const place = row.city || row.country || row.open_date || row.due_date || row.direction || "—";
     const status = row.status || row.direction || row.transport_type || "active";
-    return <tr key={row.id}><td><strong>{name}</strong><small>{detail}</small></td><td>{place}</td><td><span className={`badge ${status}`}>{statusLabels[status] || status}</span></td><td>{row.updated_at ? new Date(row.updated_at).toLocaleDateString() : "—"}</td><td>{type === "leads" && openLeadStatuses.has(row.status) ? <button className="text-button" disabled={converting} onClick={() => onConvert(row.id)}>Convert</button> : null}</td></tr>;
+    return <tr key={row.id}><td><strong>{name}</strong><small>{detail}</small></td><td>{place}</td><td><span className={`badge ${status}`}>{statusLabels[status] || status}</span></td><td>{row.updated_at ? new Date(row.updated_at).toLocaleDateString() : "—"}</td><td>{type === "leads" && openLeadStatuses.has(row.status) ? <button className="text-button" disabled={converting} onClick={() => onConvert(row.id)}>Convert</button> : null}<button className="text-button text-red-600" disabled={converting} onClick={() => onDelete(row.id)}>Delete</button></td></tr>;
   })}</tbody></table></div>;
 }
