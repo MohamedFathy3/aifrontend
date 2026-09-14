@@ -9,11 +9,11 @@ import { Button } from "@/app/components/ui/button";
 
 const links = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/dashboard?tab=leads", label: "Leads", icon: Users },
-  { href: "/dashboard?tab=clients", label: "Clients", icon: Building2 },
-  { href: "/dashboard?tab=shipments", label: "Shipments", icon: Ship },
-  { href: "/dashboard?tab=follow-ups", label: "Follow-ups", icon: ClipboardList },
-  { href: "/dashboard?tab=agents", label: "Agents", icon: Users },
+  { href: "/leads", label: "Leads", icon: Users },
+  { href: "/clients", label: "Clients", icon: Building2 },
+  { href: "/shipments", label: "Shipments", icon: Ship },
+  { href: "/follow-ups", label: "Follow-ups", icon: ClipboardList },
+  { href: "/agents", label: "Agents", icon: Users },
   { href: "/inbox", label: "Gmail Inbox", icon: Mail },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/research", label: "AI Research", icon: Search },
