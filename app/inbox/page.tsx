@@ -23,19 +23,21 @@ export default function InboxPage() {
   const [subject, setSubject] = useState("");
   const [notice, setNotice] = useState("");
   const [pages, setPages] = useState<InboxResponse[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
   const status = useQuery({ queryKey: ["google-status"], queryFn: async () => (await apiClient.get("/v1/google/status")).data });
   const connected = !!status.data?.connected;
   const inbox = useQuery<InboxResponse>({ queryKey: ["gmail", search], queryFn: async () => (await apiClient.get("/v1/google/gmail", { params: { q: search, limit: 30 } })).data, enabled: connected });
   const selected = useQuery<MailDetail>({ queryKey: ["gmail-message", selectedId], queryFn: async () => (await apiClient.get(`/v1/google/gmail/${selectedId}`)).data, enabled: !!selectedId && connected });
   const draft = useMutation({ mutationFn: async () => (await apiClient.post("/v1/ai/email-draft", { email: `From: ${selected.data?.from}\nSubject: ${selected.data?.subject}\n\n${selected.data?.body || selected.data?.snippet || ""}`, tone: "professional", goal: "reply helpfully and move the conversation forward" })).data, onSuccess: data => { setBody(data.draft || ""); setNotice("AI draft created. Review it before sending."); } });
   const send = useMutation({ mutationFn: async () => apiClient.post("/v1/google/gmail/send", { to: address(to), subject, body }), onSuccess: () => { setNotice("Email sent successfully."); setComposer(false); setBody(""); } });
-  const messages = useMemo(() => pages.flatMap(page => page.messages), [pages]);
-  const nextPageToken = pages.at(-1)?.next_page_token;
-  useEffect(() => { if (inbox.data && pages.length === 0) setPages([inbox.data]); }, [inbox.data, pages.length]);
+  const currentData = pages[currentPage];
+  const messages = useMemo(() => currentData?.messages || [], [currentData]);
+  const nextPageToken = currentData?.next_page_token;
+  useEffect(() => { if (inbox.data && pages.length === 0) { setPages([inbox.data]); setCurrentPage(0); } }, [inbox.data, pages.length]);
 
-  async function loadFirstPage() { const result = await inbox.refetch(); if (result.data) setPages([result.data]); }
-  async function loadMore() { if (!nextPageToken) return; const result = await apiClient.get<InboxResponse>("/v1/google/gmail", { params: { q: search, limit: 30, pageToken: nextPageToken } }); setPages(current => [...current, result.data]); }
-  function previousPage() { if (pages.length > 1) { setPages(current => current.slice(0, -1)); setSelectedId(null); } }
+  async function loadFirstPage() { const result = await inbox.refetch(); if (result.data) { setPages([result.data]); setCurrentPage(0); setSelectedId(null); } }
+  async function loadMore() { if (!nextPageToken) return; if (pages[currentPage + 1]) { setCurrentPage(page => page + 1); setSelectedId(null); return; } const result = await apiClient.get<InboxResponse>("/v1/google/gmail", { params: { q: search, limit: 30, pageToken: nextPageToken } }); setPages(current => [...current, result.data]); setCurrentPage(page => page + 1); setSelectedId(null); }
+  function previousPage() { if (currentPage > 0) { setCurrentPage(page => page - 1); setSelectedId(null); } }
   function openMessage(id: string) { setSelectedId(id); setComposer(false); setNotice(""); }
   function connect() { window.location.href = "/api/v1/google/connect"; }
   function submit(e: FormEvent) { e.preventDefault(); send.mutate(); }
