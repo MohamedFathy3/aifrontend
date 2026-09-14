@@ -8,9 +8,11 @@ import { WorkspaceFrame } from "@/app/components/WorkspaceFrame";
 
 type Client = { id: number; company_name: string };
 type CalendarEvent = { id: string; summary?: string; description?: string; start?: { dateTime?: string; date?: string }; end?: { dateTime?: string; date?: string }; attendees?: { email: string }[] };
+type FollowUp = { id: number; subject_type: string; subject_id: number; type: string; due_date: string; due_time?: string; note?: string };
 
 type ClientsResponse = { data: Client[] };
 type CalendarResponse = { items?: CalendarEvent[] };
+type FollowUpsResponse = { data: FollowUp[] };
 
 function localDateTime(value: string | undefined) {
   if (!value) return "";
@@ -29,6 +31,7 @@ export default function CalendarPage() {
 
   const clients = useQuery<ClientsResponse>({ queryKey: ["calendar-clients"], queryFn: async () => (await apiClient.get("/v1/clients", { params: { per_page: 100 } })).data });
   const calendar = useQuery<CalendarResponse>({ queryKey: ["calendar-events"], queryFn: async () => (await apiClient.get("/v1/google/calendar", { params: { limit: 50 } })).data });
+  const followUps = useQuery<FollowUpsResponse>({ queryKey: ["calendar-follow-ups"], queryFn: async () => (await apiClient.get("/v1/follow-ups", { params: { per_page: 100 } })).data });
   const createEvent = useMutation({
     mutationFn: async () => apiClient.post("/v1/google/calendar", {
       client_id: clientId ? Number(clientId) : null,
@@ -67,6 +70,9 @@ export default function CalendarPage() {
         {calendar.isLoading ? <div className="empty">Loading your calendar…</div> : !events.length ? <div className="empty"><CalendarDays size={28} /><span>No upcoming appointments yet.</span></div> : <div className="follow-list">{events.map(item => <article className="follow-item" key={item.id}><div className="date-box"><strong>{new Date(item.start?.dateTime || item.start?.date || "").getDate()}</strong><span>{new Date(item.start?.dateTime || item.start?.date || "").toLocaleString("en", { month: "short" })}</span></div><div><strong>{item.summary || "Untitled appointment"}</strong><p>{localDateTime(item.start?.dateTime || item.start?.date)}{item.attendees?.length ? ` · ${item.attendees.length} invitee(s)` : ""}</p>{item.description && <small>{item.description}</small>}</div></article>)}</div>}
       </section>
     </div>
+    <section className="panel" style={{ marginTop: 18 }}><div className="panel-head"><div><p className="eyebrow">CRM tasks</p><h3>Upcoming follow-ups</h3></div><span className="panel-count">{followUps.data?.data?.length ?? 0} tasks</span></div>
+      {followUps.isLoading ? <div className="empty">Loading follow-up tasks…</div> : !followUps.data?.data?.length ? <div className="empty"><Clock3 size={24} /><span>No follow-up tasks scheduled.</span></div> : <div className="follow-list">{followUps.data.data.map(task => <article className="follow-item" key={task.id}><div className="date-box"><strong>{new Date(task.due_date).getDate()}</strong><span>{new Date(task.due_date).toLocaleString("en", { month: "short" })}</span></div><div><strong>{task.type.replace("_", " ")} · {task.subject_type} #{task.subject_id}</strong><p>{localDateTime(`${task.due_date}${task.due_time ? `T${task.due_time}` : "T00:00:00"}`)}</p>{task.note && <small>{task.note}</small>}</div></article>)}</div>}
+    </section>
     <section className="panel calendar-help"><Users size={18} /><div><strong>Client follow-up made simple</strong><p>Select a client to keep the appointment linked to your CRM. The event is stored locally with its Google event ID, while Google Calendar remains the source of truth for your schedule.</p></div></section>
   </div></main></WorkspaceFrame>;
 }
