@@ -1,11 +1,12 @@
 "use client";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Mail, Send } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { WorkspaceFrame } from "@/app/components/WorkspaceFrame";
 export default function SendEmailPage() {
   const [to, setTo] = useState(""); const [subject, setSubject] = useState(""); const [body, setBody] = useState(""); const [notice, setNotice] = useState(""); const [clientId, setClientId] = useState(""); const [clientSearch, setClientSearch] = useState("");
+  useEffect(() => { const params = new URLSearchParams(window.location.search); if (params.get("to")) setTo(params.get("to") || ""); if (params.get("subject")) setSubject(params.get("subject") || ""); }, []);
   const clients = useQuery<{ data: { id: number; company_name: string }[] }>({ queryKey: ["send-email-clients"], queryFn: async () => (await apiClient.get("/v1/clients", { params: { per_page: 100 } })).data });
   const contacts = useQuery<{ data: { contactable_type: string; contactable_id: number; email?: string; is_primary?: boolean }[] }>({ queryKey: ["send-email-contacts"], queryFn: async () => (await apiClient.get("/v1/contacts", { params: { per_page: 200 } })).data });
   const filteredClients = useMemo(() => (clients.data?.data || []).filter(client => client.company_name.toLowerCase().includes(clientSearch.toLowerCase())), [clients.data, clientSearch]);

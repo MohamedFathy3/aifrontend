@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, ClipboardList, Plus, Trash2, X } from "lucide-react";
+import { CalendarClock, CheckCircle2, ClipboardList, Mail, Plus, Trash2, X } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { WorkspaceFrame } from "./WorkspaceFrame";
@@ -64,7 +65,8 @@ function RecordTable({ rows, type, selectedIds, onToggle, onEdit, onConvert, onD
     const detail = row.email || row.client?.company_name || row.agent?.company_name || row.assigned_to?.name || row.type || "—";
     const place = row.city || row.country || row.open_date || row.due_date || row.direction || "—";
     const status = row.status || row.direction || row.transport_type || "active";
-    return <tr key={row.id}><td><label className="row-check"><input type="checkbox" checked={selectedIds.includes(row.id)} onChange={() => onToggle(row.id)} /><span><strong>{name}</strong><small>{detail}</small></span></label></td><td>{place}</td><td><span className={`badge ${status}`}>{statusLabels[status] || status}</span></td><td>{row.updated_at ? new Date(row.updated_at).toLocaleDateString() : "—"}</td><td>{onEdit ? <button className="text-button" disabled={converting} onClick={() => onEdit(row)}>Edit</button> : null}{type === "leads" && openLeadStatuses.has(row.status) ? <button className="text-button" disabled={converting} onClick={() => onConvert(row.id)}>Convert</button> : null}<button className="text-button text-red-600" disabled={converting} onClick={() => onDelete(row.id)}>Delete</button></td></tr>;
+    const emailParams = row.email ? `?to=${encodeURIComponent(row.email)}&subject=${encodeURIComponent(`Follow-up with ${name}`)}` : "";
+    return <tr key={row.id}><td><label className="row-check"><input type="checkbox" checked={selectedIds.includes(row.id)} onChange={() => onToggle(row.id)} /><span><strong>{name}</strong><small>{detail}</small></span></label></td><td>{place}</td><td><span className={`badge ${status}`}>{statusLabels[status] || status}</span></td><td>{row.updated_at ? new Date(row.updated_at).toLocaleDateString() : "—"}</td><td>{onEdit ? <button className="text-button" disabled={converting} onClick={() => onEdit(row)}>Edit</button> : null}{type === "leads" && row.email && <><Link className="text-button" href={`/send-email${emailParams}`}><Mail size={14} /> Email</Link><Link className="text-button" href={`/scheduled-emails${emailParams}`}><CalendarClock size={14} /> Schedule</Link></>}{type === "leads" && openLeadStatuses.has(row.status) ? <button className="text-button" disabled={converting} onClick={() => onConvert(row.id)}>Convert</button> : null}<button className="text-button text-red-600" disabled={converting} onClick={() => onDelete(row.id)}>Delete</button></td></tr>;
   })}</tbody></table></div>;
 }
 

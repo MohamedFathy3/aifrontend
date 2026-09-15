@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, Mail, Sparkles, Trash2 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
@@ -17,6 +17,7 @@ export default function ScheduledEmailsPage() {
   const [goal, setGoal] = useState("");
   const [tone, setTone] = useState("professional");
   const [notice, setNotice] = useState("");
+  useEffect(() => { const params = new URLSearchParams(window.location.search); if (params.get("to")) setToEmail(params.get("to") || ""); if (params.get("subject")) setSubject(params.get("subject") || ""); }, []);
   const timezone = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC" : "UTC";
   const emails = useQuery<{ data: ScheduledEmail[] }>({ queryKey: ["scheduled-emails"], queryFn: async () => (await apiClient.get("/v1/scheduled-emails")).data });
   const draft = useMutation({ mutationFn: async () => (await apiClient.post("/v1/ai/email-draft", { email: `Recipient: ${toEmail}\nSubject: ${subject}\nGoal: ${goal || "Write a helpful sales email"}\nPlease draft the complete email body.`, tone, goal: goal || "Write a helpful sales email" })).data, onSuccess: (data) => { setBody(data.draft || ""); setNotice("AI draft ready. Review it before scheduling."); }, onError: () => setNotice("AI assistant is unavailable. Check AI_API_KEY on the server.") });
