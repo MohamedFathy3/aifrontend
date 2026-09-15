@@ -1,6 +1,7 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/(auth)/login/page": "app/(auth)/login/page.js",
-  "/api/[...path]/route": "app/api/[...path]/route.js",
-  "/dashboard/page": "app/dashboard/page.js"
+  "/leads/page": "app/leads/page.js",
+  "/email-coach/page": "app/email-coach/page.js",
+  "/clients/page": "app/clients/page.js",
+  "/send-email/page": "app/send-email/page.js",
+  "/chat/page": "app/chat/page.js"
 }

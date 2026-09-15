@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND_URL = process.env.LARAVEL_BACKEND_URL || "https://ai.injazyemen.cloud";
+const BACKEND_URL = process.env.LARAVEL_BACKEND_URL || "https://ais.injazyemen.cloud";
 
 function rewriteSetCookie(cookie: string): string {
   return cookie
