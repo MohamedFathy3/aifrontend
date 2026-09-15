@@ -1,2 +1,5 @@
-import { CrmRecordsPage } from "@/app/components/CrmRecordsPage";
-export default function FollowUpsPage() { return <CrmRecordsPage type="follow-ups" />; }
+import { FollowUpsManager } from "@/app/components/FollowUpsManager";
+
+export default function FollowUpsPage() {
+  return <FollowUpsManager />;
+}
